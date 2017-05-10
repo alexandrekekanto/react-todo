@@ -1,4 +1,7 @@
 import React, { Component } from 'react';
+import fetch from 'isomorphic-fetch';
+import uuidV1 from 'uuid/v1';
+import Immutable from 'immutable';
 import './App.css';
 
 const TodoHeader = () => {
@@ -7,7 +10,7 @@ const TodoHeader = () => {
 
 const TodoList = (props) => {
   return <ul>
-    {props.todos.map(t => <TodoListItem todo={t} />)}
+    {props.todos.toList().map(t => <TodoListItem todo={t} key={t.id} />)}
   </ul>;
 }
 
@@ -28,6 +31,7 @@ class AddTodoForm extends Component {
   handleSubmit(event) {
     event.preventDefault();
     this.props.onTodoAdded({
+      id: uuidV1(),
       text: this.state.value,
       completed: false
     });
@@ -47,27 +51,32 @@ class AddTodoForm extends Component {
   }
 }
 
-let TODOS = [
-  {text: "Denis 1", completed: false},
-  {text: "Denis 2", completed: false},
-  {text: "Denis 3", completed: false}
-];
-
 class App extends Component {
 
   constructor(props) {
     super(props);
     this.state = {
-      todos: TODOS
+      todos: Immutable.OrderedMap()
     }
 
     this.addTodo = this.addTodo.bind(this);
   }
 
+  componentDidMount() {
+    fetch('/api/todos.json')
+      .then(response => response.json())
+      .then(json => {
+        let todosMap = json.map(t => [t.id, t]);
+        this.setState({
+          todos: Immutable.OrderedMap(todosMap)
+        });
+      });
+  }
+
   addTodo(todo) {
-    TODOS.push(todo);
+    let todosMap = this.state.todos.set(todo.id, todo);
     this.setState({
-      todos: TODOS
+      todos: todosMap
     })
   }
 
