@@ -1,4 +1,7 @@
 import React, { Component } from 'react';
+import fetch from 'isomorphic-fetch';
+import uuidV1 from 'uuid/v1';
+import Immutable from 'immutable';
 import './App.css';
 
 const TodoHeader = () => {
@@ -6,13 +9,34 @@ const TodoHeader = () => {
 }
 
 const TodoList = (props) => {
+  console.log(props);
   return <ul>
-    {props.todos.map(t => <TodoListItem todo={t} />)}
+    {props.todos.toList().map(t =>
+      <TodoListItem key={t.id} todo={t} onToggleTodo={props.onToggleTodo} />
+    )}
   </ul>;
 }
 
-const TodoListItem = ({todo}) => {
-  return <li>{todo.text}</li>
+class TodoListItem extends Component {
+
+  constructor(props) {
+    super(props);
+    this.state = {checked: false};
+
+    this.handleChange = this.handleChange.bind(this);
+  }
+
+  handleChange(event) {
+    let checked = event.target.checked;
+    this.setState({checked});
+    this.props.onToggleTodo(this.props.todo.id);
+  }
+
+  render() {
+    return <li><input type="checkbox" checked={this.state.checked} onChange={this.handleChange} />
+      {this.props.todo.text}
+    </li>;
+  }
 }
 
 class AddTodoForm extends Component {
@@ -28,6 +52,7 @@ class AddTodoForm extends Component {
   handleSubmit(event) {
     event.preventDefault();
     this.props.onTodoAdded({
+      id: uuidV1(),
       text: this.state.value,
       completed: false
     });
@@ -47,28 +72,43 @@ class AddTodoForm extends Component {
   }
 }
 
-let TODOS = [
-  {text: "Denis 1", completed: false},
-  {text: "Denis 2", completed: false},
-  {text: "Denis 3", completed: false}
-];
-
 class App extends Component {
 
   constructor(props) {
     super(props);
     this.state = {
-      todos: TODOS
-    }
-
+      todos: Immutable.OrderedMap()
+    };
     this.addTodo = this.addTodo.bind(this);
+    this.toggleTodo = this.toggleTodo.bind(this);
+  }
+
+  componentDidMount() {
+    fetch("/api/todos.json")
+      .then(response => response.json())
+      .then(todos => {
+        console.log(todos);
+        this.setState({
+          todos: Immutable.OrderedMap(todos.map(todo => [todo.id, todo]))
+        });
+      });
   }
 
   addTodo(todo) {
-    TODOS.push(todo);
+    let newTodos = this.state.todos.set(todo.id, todo);
+    console.log(newTodos);
     this.setState({
-      todos: TODOS
-    })
+      todos: newTodos
+    });
+  }
+
+  toggleTodo(id) {
+    let newTodos = this.state.todos.update(id,
+      todo => {
+        todo.completed = !todo.completed;
+        return todo;
+      });
+    this.setState({todos: newTodos});
   }
 
   render() {
@@ -76,7 +116,7 @@ class App extends Component {
       <div className="App">
         <TodoHeader />
         <AddTodoForm onTodoAdded={this.addTodo} />
-        <TodoList todos={this.state.todos} />
+        <TodoList todos={this.state.todos} onToggleTodo={this.toggleTodo} />
       </div>
     );
   }
