@@ -1,9 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import App from './App';
+import AppContainer from './containers/AppContainer';
+import TodoActions from './data/TodoActions';
 import './index.css';
 
 ReactDOM.render(
-  <App />,
+  <AppContainer />,
   document.getElementById('root')
 );
+
+TodoActions.fetchTodos();
